@@ -5,7 +5,7 @@
 // @version        2019.1.30.1
 // @downloadURL    https://raw.githubusercontent.com/murdos/musicbrainz-userscripts/master/deezer_importer.user.js
 // @updateURL      https://raw.githubusercontent.com/murdos/musicbrainz-userscripts/master/deezer_importer.user.js
-// @include        http*://www.deezer.com/*/album/*
+// @match          http*://www.deezer.com/*/album/*
 // @require        https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js
 // @require        lib/mbimport.js
 // @require        lib/logger.js
@@ -140,6 +140,6 @@ function insertLink(release, release_url) {
             </div>`
     ).hide();
 
-    $('div.toolbar-wrapper-full').append(mbUI);
+    $('.page-topbar').append(mbUI);
     mbUI.show();
 }
