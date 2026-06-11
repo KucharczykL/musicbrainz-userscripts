@@ -2,7 +2,7 @@
 // @name         Import VGMdb releases into MusicBrainz
 // @namespace    https://github.com/murdos/musicbrainz-userscripts/
 // @description  One-click importing of releases from vgmdb.net into MusicBrainz. Scrapes album pages directly, so it keeps working while the VGMdb API is unavailable.
-// @version      2026.6.11.2
+// @version      2026.6.11.3
 // @downloadURL  https://raw.githubusercontent.com/murdos/musicbrainz-userscripts/master/vgmdb_importer.user.js
 // @updateURL    https://raw.githubusercontent.com/murdos/musicbrainz-userscripts/master/vgmdb_importer.user.js
 // @match        https://vgmdb.net/album/*
@@ -130,6 +130,7 @@ function buildRelease(shared, tracklist, releaseUrl) {
         country: shared.country,
         labels: shared.labels,
         barcode: shared.barcode,
+        annotation: shared.annotation,
         urls: [{ url: releaseUrl, link_type: VGMDB_LINK_TYPE }].concat(shared.urls),
         discs: tracklist.discs.map(function (disc) {
             return {
@@ -153,8 +154,10 @@ function buildRelease(shared, tracklist, releaseUrl) {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /*
- * Parses everything that doesn't depend on the tracklist language:
- * date, barcode, catalog number, labels, status, types, country, URLs, artists.
+ * Parses everything that doesn't depend on the tracklist language: date,
+ * barcode, catalog number, labels, status, types, country, URLs, artists.
+ * The full credits go into the annotation, since MusicBrainz relationships
+ * (arranger, lyricist, engineers, ...) cannot be seeded into the release editor.
  */
 function parseSharedAlbumInfo() {
     const shared = {
@@ -173,6 +176,7 @@ function parseSharedAlbumInfo() {
 
     const organizations = []; // { role, names: [] }
     const roleArtists = {}; // role label -> [artist names]
+    const creditRows = []; // { role, names: [] } from the credits section, in page order
     let catno = null;
     const $infoTable = $('#innermain #rightfloat table').first();
 
@@ -230,9 +234,14 @@ function parseSharedAlbumInfo() {
                 case 'Organizations':
                     parseOrganizationsRow($value, organizations);
                     break;
-                default:
-                    roleArtists[label] = (roleArtists[label] || []).concat(parseLinkedNames($value));
+                default: {
+                    const names = parseLinkedNames($value);
+                    roleArtists[label] = (roleArtists[label] || []).concat(names);
+                    if (names.length && $(this).closest('#collapse_credits').length) {
+                        creditRows.push({ role: label, names: names });
+                    }
                     break;
+                }
             }
         });
 
@@ -249,6 +258,8 @@ function parseSharedAlbumInfo() {
     }
 
     shared.urls = parseExternalLinks();
+
+    shared.annotation = creditRows.map(row => `${row.role}: ${row.names.join(', ')}`).join('\n');
 
     return shared;
 }
