@@ -148,7 +148,7 @@ Add a button to import https://www.takealot.com/ releases to MusicBrainz via API
 
 ## <a name="vgmdb_importer"></a> Import VGMdb releases into MusicBrainz
 
-One-click importing of releases from vgmdb.net into MusicBrainz. **⚠️ Currently broken:** The VGMdb API is unavailable (returns 503). The script displays a notice to users and links to [VGMdb's BlueSky](https://bsky.app/profile/vgmdb.net/post/3lcvclcpny22d) for status updates.
+One-click importing of releases from vgmdb.net into MusicBrainz. Scrapes album pages directly, so it keeps working while the VGMdb API is unavailable. Imports title, artists, date, label, catalog number, barcode, country, formats, release type and status, store/website links, and the tracklist in every language loaded on the page (click a tracklist language tab to import that language). Also adds MusicBrainz search buttons to artist and organization pages.
 
 [![Source](assets/buttons/button-source.svg)](https://github.com/murdos/musicbrainz-userscripts/blob/master/vgmdb_importer.user.js)
 [![Install](assets/buttons/button-install.svg)](https://raw.githubusercontent.com/murdos/musicbrainz-userscripts/master/vgmdb_importer.user.js)
