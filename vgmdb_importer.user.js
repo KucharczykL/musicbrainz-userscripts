@@ -2,7 +2,7 @@
 // @name         Import VGMdb releases into MusicBrainz
 // @namespace    https://github.com/murdos/musicbrainz-userscripts/
 // @description  One-click importing of releases from vgmdb.net into MusicBrainz. Scrapes album pages directly, so it keeps working while the VGMdb API is unavailable.
-// @version      2026.6.11.1
+// @version      2026.6.11.2
 // @downloadURL  https://raw.githubusercontent.com/murdos/musicbrainz-userscripts/master/vgmdb_importer.user.js
 // @updateURL    https://raw.githubusercontent.com/murdos/musicbrainz-userscripts/master/vgmdb_importer.user.js
 // @match        https://vgmdb.net/album/*
@@ -254,17 +254,34 @@ function parseSharedAlbumInfo() {
 }
 
 function parseCatalogNumber($value) {
-    // First text node is this release's catalog number, links after it are reprints
-    let catno = null;
-    $value.contents().each(function () {
-        if (!catno && this.nodeType === Node.TEXT_NODE && this.nodeValue.trim()) {
-            catno = this.nodeValue.trim();
-        }
-    });
+    // The first text in the cell is this release's catalog number. It may be
+    // wrapped in a dropdown toggle link when there are reprints, whose own
+    // catalog numbers follow in a popup menu.
+    let catno = firstText($value[0]);
     if (catno) {
         catno = cleanText(catno.split('(')[0]);
     }
     return catno && catno !== 'N/A' ? catno : null;
+}
+
+/*
+ * Returns the first non-empty text node content within a node, in document
+ * order, ignoring scripts.
+ */
+function firstText(node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+        return cleanText(node.nodeValue) ? node.nodeValue : null;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE || node.tagName === 'SCRIPT' || node.tagName === 'STYLE') {
+        return null;
+    }
+    for (let child = node.firstChild; child; child = child.nextSibling) {
+        const text = firstText(child);
+        if (text) {
+            return text;
+        }
+    }
+    return null;
 }
 
 function parseBarcode($value) {
@@ -869,25 +886,34 @@ function insertSearchUI(entityType) {
  * VGMdb renders names in multiple languages as sibling <span lang="...">
  * elements of which only one is displayed. Returns the text in the requested
  * language, falling back to English, then to the first available language,
- * then to the element's own text.
+ * then to the element's own text. " / " separators for multi-title display
+ * are wrapped in <em> elements and must be ignored.
  */
 function multiLangText($container, langCode) {
     const $spans = $container.find('span[lang]');
+    let $pick;
     if (!$spans.length) {
-        return cleanText($container.text());
+        $pick = $container;
+    } else {
+        $pick = langCode ? $spans.filter(`[lang="${langCode}"]`) : $();
+        if (!$pick.length) {
+            $pick = $spans.filter('[lang="en"]');
+        }
+        if (!$pick.length) {
+            $pick = $spans.first();
+        }
     }
-    let $pick = langCode ? $spans.filter(`[lang="${langCode}"]`) : $();
-    if (!$pick.length) {
-        $pick = $spans.filter('[lang="en"]');
-    }
-    if (!$pick.length) {
-        $pick = $spans.first();
-    }
-    return cleanText($pick.first().text());
+    const $clone = $pick.first().clone();
+    $clone.find('em').remove();
+    return cleanText($clone.text());
 }
 
 function cleanText(text) {
-    return (text || '').replace(/\s+/g, ' ').trim();
+    // Remove zero width spaces, collapse the rest
+    return (text || '')
+        .replace(/\u200b/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
 }
 
 function htmlEscapeAttribute(text) {
